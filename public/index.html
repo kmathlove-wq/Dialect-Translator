@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>방언번역기</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗣️</text></svg>">
+<style>
+  :root {
+    --line: #e5e7eb;
+    --text: #111;
+    --muted: #9ca3af;
+    --icon: #8b9098;
+    --right-bg: #f9fafb;
+    --accent: #03c75a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 16px;
+    background: #f3f4f6;
+    font-family: "Pretendard", "Malgun Gothic", sans-serif;
+    color: var(--text);
+  }
+  h1 { max-width: 1500px; margin: 0 auto 16px; font-size: 22px; }
+  h1 span { color: var(--accent); }
+
+  .box {
+    max-width: 1500px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  /* ── 위쪽 줄: 언어 고르기 ── */
+  .top {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--line);
+    height: 72px;
+  }
+  .top-left, .top-right { display: flex; align-items: center; padding: 0 24px; }
+  .top-right { gap: 16px; position: relative; }
+  #swap {
+    position: absolute;
+    left: -36px;
+    background: none; border: none; cursor: pointer; padding: 6px;
+    color: #333;
+  }
+  #swap:hover { color: var(--accent); }
+
+  select {
+    appearance: none;
+    border: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23111' stroke-width='1.6'%3E%3Cpath d='M3 6l5 5 5-5'/%3E%3C/svg%3E") no-repeat right center;
+    padding-right: 24px;
+    font-size: 17px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  select:focus { outline: none; }
+
+  .toggle {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: #6b7280; cursor: pointer; user-select: none;
+  }
+  .toggle input { display: none; }
+  .toggle .track {
+    width: 40px; height: 22px; border-radius: 11px;
+    background: #e5e7eb; position: relative; transition: background .2s;
+  }
+  .toggle .track::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .2s;
+  }
+  .toggle input:checked + .track { background: var(--accent); }
+  .toggle input:checked + .track::after { left: 21px; }
+
+  /* ── 아래쪽: 입력칸 / 결과칸 ── */
+  .main { display: grid; grid-template-columns: 1fr 1fr; height: 450px; }
+  .pane { display: flex; flex-direction: column; padding: 24px; min-height: 0; }
+  .pane.right { background: var(--right-bg); border-left: 1px solid var(--line); }
+
+  textarea {
+    flex: 1; border: none; resize: none; outline: none;
+    font-size: 26px; line-height: 1.5; font-family: inherit; color: var(--text);
+  }
+  textarea::placeholder { color: var(--muted); }
+
+  #result { flex: 1; font-size: 26px; line-height: 1.5; white-space: pre-wrap; overflow-y: auto; }
+  #result.loading { color: var(--muted); }
+  #result.error { color: #dc2626; font-size: 18px; }
+
+  #notes { font-size: 14px; color: #4b5563; margin-top: 12px; }
+  #notes div { margin-top: 4px; }
+  #notes b { color: var(--accent); }
+  .check {
+    font-style: normal; font-size: 12px; margin-left: 6px;
+    padding: 1px 7px; border-radius: 10px; background: #f3f4f6; color: var(--muted);
+  }
+  .check.ok   { background: #e7f8ee; color: #047a3a; }
+  .check.warn { background: #fef6e0; color: #92600a; }
+
+  .bottom { display: flex; align-items: center; gap: 14px; padding-top: 12px; }
+  .count { font-size: 13px; color: var(--muted); margin-right: auto; }
+  .icon-btn {
+    background: none; border: none; cursor: pointer; padding: 4px;
+    color: var(--icon); display: flex;
+  }
+  .icon-btn:hover { color: #333; }
+  .icon-btn.done { color: var(--accent); }
+
+  @media (max-width: 720px) {
+    .top, .main { grid-template-columns: 1fr; height: auto; }
+    .top-left, .top-right { height: 60px; }
+    .top-right { border-top: 1px solid var(--line); }
+    #swap { position: static; }
+    .pane { min-height: 260px; }
+    .pane.right { border-left: none; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<h1><span>방언</span>번역기</h1>
+
+<div class="box">
+  <div class="top">
+    <div class="top-left">
+      <select id="src"></select>
+    </div>
+    <div class="top-right">
+      <button id="swap" title="언어 서로 바꾸기">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 8h15l-4-4M20 16H5l4 4"/>
+        </svg>
+      </button>
+      <select id="dst"></select>
+      <label class="toggle">높임말
+        <input type="checkbox" id="polite"><span class="track"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="pane left">
+      <textarea id="input" placeholder="번역할 내용을 입력하세요" maxlength="2000"></textarea>
+      <div class="bottom">
+        <span class="count" id="count">0 / 2000</span>
+        <button class="icon-btn" id="speak-in" title="읽어주기">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 9v6M19 7v10"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="copy-in" title="복사하기">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="pane right">
+      <div id="result"></div>
+      <div id="notes"></div>
+      <div class="bottom">
+        <span class="count"></span>
+        <button class="icon-btn" id="speak-out" title="읽어주기">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M3 9h4l5-4v14l-5-4H3z"/><path d="M16 9v6M19 7v10"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="copy-out" title="복사하기">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+            <rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DIALECTS = ["표준어", "경상도", "전라도", "충청도", "제주도", "강원도"];
+const $ = (id) => document.getElementById(id);
+const src = $("src"), dst = $("dst"), input = $("input"), result = $("result"), notes = $("notes");
+
+// 언어 목록 채우기 (처음에는 경상도 → 표준어)
+for (const sel of [src, dst]) {
+  for (const d of DIALECTS) sel.add(new Option(d, d));
+}
+src.value = "경상도";
+dst.value = "표준어";
+
+let timer = null;   // 글쓰기를 잠깐 멈췄을 때 번역하려고 쓰는 타이머
+let lastId = 0;     // 예전 번역 결과가 늦게 와서 덮어쓰지 않게 하는 번호표
+
+function scheduleTranslate() {
+  $("count").textContent = `${input.value.length} / 2000`;
+  clearTimeout(timer);
+  timer = setTimeout(doTranslate, 1500);  // 1.5초 동안 입력이 없으면 번역 (너무 자주 물어보면 한도에 걸려요)
+}
+
+async function doTranslate() {
+  const text = input.value.trim();
+  notes.innerHTML = "";
+  result.className = "";
+  if (!text) { result.textContent = ""; return; }
+
+  if (src.value === dst.value) {
+    result.textContent = text;
+    return;
+  }
+
+  const id = ++lastId;
+  result.className = "loading";
+  result.textContent = "번역 중…";
+
+  try {
+    const res = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, src: src.value, dst: dst.value, polite: $("polite").checked }),
+    });
+    const data = await res.json();
+    if (id !== lastId) return;  // 더 새로운 번역이 이미 시작됐으면 무시
+    if (!res.ok) throw new Error(data.error);
+
+    result.className = "";
+    result.textContent = data.translation;
+    const rows = (data.notes || []).map((n) => {
+      const div = document.createElement("div");
+      div.innerHTML = "※ <b></b> = <span></span> <i class='check'>사전 확인 중…</i>";
+      div.querySelector("b").textContent = n.word;
+      div.querySelector("span").textContent = n.meaning;
+      notes.append(div);
+      return div;
+    });
+    if (rows.length) checkDictionary(data.notes, rows, id);
+  } catch (e) {
+    if (id !== lastId) return;
+    result.className = "error";
+    result.textContent = e.message.includes("fetch")
+      ? "서버에 연결할 수 없어요. 잠시 뒤에 다시 해 보세요."
+      : e.message;
+  }
+}
+
+// 📖 우리말샘 사전에서 방언 단어가 진짜인지 확인해서 표시 붙이기
+const BADGE = {
+  ok:    ["✅", "사전 확인", "ok"],
+  other: ["🟡", "다른 지역 방언", "warn"],
+  std:   ["📘", "표준어로만 있음", "warn"],
+  none:  ["❔", "사전에 없음", "none"],
+  error: ["⚠", "사전 연결 실패", "none"],
+};
+
+async function checkDictionary(noteList, rows, id) {
+  // 방언 쪽 지역을 확인해요 (표준어로 번역할 때는 원래 글의 지역)
+  const region = dst.value !== "표준어" ? dst.value : src.value;
+  let checks;
+  try {
+    const res = await fetch("/api/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes: noteList, region }),
+    });
+    checks = await res.json();
+    if (!Array.isArray(checks)) throw new Error();
+  } catch {
+    checks = noteList.map(() => ({ status: "error" }));
+  }
+  if (id !== lastId) return;
+
+  checks.forEach((c, i) => {
+    const [icon, label, cls] = BADGE[c.status] || BADGE.none;
+    const tag = rows[i].querySelector(".check");
+    tag.className = "check " + cls;
+    tag.textContent = `${icon} ${label}`;
+    if (c.definition) {
+      const where = c.regions && c.regions.length ? ` (${c.regions.join(", ")})` : "";
+      tag.title = `우리말샘: ${c.definition}${where}\n클릭하면 사전을 열어요`;
+      tag.onclick = () => window.open(c.link, "_blank");
+      tag.style.cursor = "pointer";
+    }
+  });
+}
+
+input.addEventListener("input", scheduleTranslate);
+src.addEventListener("change", doTranslate);
+dst.addEventListener("change", doTranslate);
+$("polite").addEventListener("change", doTranslate);
+
+// ⇄ 버튼: 양쪽 언어와 글을 서로 바꾸기
+$("swap").addEventListener("click", () => {
+  [src.value, dst.value] = [dst.value, src.value];
+  if (result.textContent && !result.className) input.value = result.textContent;
+  scheduleTranslate();
+});
+
+// 🔊 읽어주기 (컴퓨터에 들어 있는 한국어 목소리 사용)
+function speak(text) {
+  if (!text) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "ko-KR";
+  speechSynthesis.speak(u);
+}
+$("speak-in").addEventListener("click", () => speak(input.value));
+$("speak-out").addEventListener("click", () => speak(result.className ? "" : result.textContent));
+
+// 📋 복사하기 (복사되면 잠깐 초록색으로 바뀜)
+async function copy(btn, text) {
+  if (!text) return;
+  await navigator.clipboard.writeText(text);
+  btn.classList.add("done");
+  setTimeout(() => btn.classList.remove("done"), 1000);
+}
+$("copy-in").addEventListener("click", (e) => copy(e.currentTarget, input.value));
+$("copy-out").addEventListener("click", (e) => copy(e.currentTarget, result.className ? "" : result.textContent));
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Cloudflare 설정 파일
+name = "dialect-translator"
+pages_build_output_dir = "./public"   # 화면 파일이 있는 폴더
+compatibility_date = "2026-09-01"
+
+# 번역기억을 저장하는 인터넷 메모장 (KV)
+[[kv_namespaces]]
+binding = "MEMORY"
+id = "e84fed23dfb14e9ea2f4453af897eb9b"
+
+# 비밀 키(GEMINI_API_KEY, OPENDICT_API_KEY)는 여기에 쓰지 않아요!
+# 인터넷: Cloudflare 비밀 설정 / 내 컴퓨터: 실행.bat 이 ~/.claude/secrets/.env 에서 읽어요
